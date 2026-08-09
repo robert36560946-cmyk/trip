@@ -1,0 +1,17 @@
+{
+  "name": "旅程積木",
+  "short_name": "旅程積木",
+  "description": "旅遊行程規劃：候選行程池、拖曳排程、時間自動順移",
+  "lang": "zh-Hant",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#eceae5",
+  "theme_color": "#eceae5",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
