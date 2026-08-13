@@ -359,7 +359,7 @@ const MODES={walk:{i:'🚶',n:'走路',k:4.6},transit:{i:'🚃',n:'大眾運輸'
 const EMOJI=['📍','⛩️','🏯','🌳','🌸','🗼','🏰','🎡','🏖️','⛰️','🍜','🍣','🍢','🍰','☕','🍺','🛍️','🎮','🏨','🚉','✈️','🚌','💡','🎨','🎢','♨️','🎁','✨'];
 const WD=['日','一','二','三','四','五','六'];
 const KEY='travelPlanner.v1';
-const APP_VER='v2026.08.13f';
+const APP_VER='v2026.08.13h';
 const PX=.62, MINH=56;
 
 /* ══════════════════ 工具 ══════════════════ */
@@ -1545,7 +1545,7 @@ async function syncNow(){
   try{
     if(snap!==t.sync.snap){                       // 本地有改 → 推
       setSync('busy','同步中…');
-      const r=await fetch(`${t.sync.url}/t/${t.sync.key}`,{method:'PUT',
+      const r=await fetch(`${normUrl(t.sync.url)}/t/${t.sync.key}`,{method:'PUT',
         headers:{'content-type':'application/json'},
         body:JSON.stringify({baseVersion:t.sync.version??-1,by:DB.me||'',data:JSON.parse(snap)})});
       if(r.status===409){const remote=await r.json();pulling=false;return conflictDialog(t,remote,snap)}
@@ -1554,7 +1554,7 @@ async function syncNow(){
       t.sync.version=j.version;t.sync.at=Date.now();t.sync.by=DB.me||'';t.sync.snap=snap;
       setSync('idle','');save();
     }else{                                        // 本地沒改 → 拉
-      const r=await fetch(`${t.sync.url}/t/${t.sync.key}?since=${t.sync.version??-1}`);
+      const r=await fetch(`${normUrl(t.sync.url)}/t/${t.sync.key}?since=${t.sync.version??-1}`);
       if(!r.ok)throw new Error('伺服器回應 '+r.status);
       const j=await r.json();
       if(!j.unchanged){applyRemote(t,j);renderAfterRemote(t)}
@@ -1589,7 +1589,7 @@ function conflictDialog(t,remote,mySnap){
   $('#cMine').onclick=async()=>{
     closeModal();setSync('busy','覆蓋中…');
     try{
-      const r=await fetch(`${t.sync.url}/t/${t.sync.key}`,{method:'PUT',
+      const r=await fetch(`${normUrl(t.sync.url)}/t/${t.sync.key}`,{method:'PUT',
         headers:{'content-type':'application/json'},
         body:JSON.stringify({baseVersion:-1,by:DB.me||'',data:JSON.parse(mySnap)})});
       const j=await r.json();
@@ -1605,6 +1605,16 @@ function conflictDialog(t,remote,mySnap){
   };
 }
 
+/* 使用者常常只貼「xxx.workers.dev」少了 https://，那樣 fetch 會被當成相對路徑，
+   打到 GitHub Pages 上變成 404。這裡統一補齊協定並去掉結尾斜線。 */
+function normUrl(u){
+  u=String(u||'').trim().replace(/\/+$/,'');
+  if(!u)return '';
+  if(!/^https?:\/\//i.test(u))u='https://'+u.replace(/^\/+/,'');
+  return u.replace(/\/+$/,'');
+}
+/* 這趟旅程實際在用的伺服器，優先於全域設定 */
+const syncBase=()=>normUrl((curTrip()&&curTrip().sync&&curTrip().sync.url)||DB.syncUrl||'');
 const shareLink=t=>`${location.origin}${location.pathname}?join=${t.sync.key}&api=${encodeURIComponent(t.sync.url)}`;
 
 function collabSheet(){
@@ -1643,7 +1653,7 @@ function collabSheet(){
   };
   const saveMeta=()=>{
     DB.me=$('#sv_me').value.trim();
-    DB.syncUrl=$('#sv_url').value.trim().replace(/\/+$/,'');
+    DB.syncUrl=normUrl($('#sv_url').value);
     save();
   };
   if(t.sync){
@@ -1663,7 +1673,7 @@ function collabSheet(){
     $('#sv_start').onclick=async()=>{
       saveMeta();
       if(!DB.syncUrl)return toast('請先填同步伺服器網址');
-      t.sync={url:DB.syncUrl,key:randKey(),version:-1,snap:''};
+      t.sync={url:normUrl(DB.syncUrl),key:randKey(),version:-1,snap:''};
       closeModal();setSync('busy','建立中…');
       await syncNow();
       if(t.sync.version>0){collabSheet();toast('已開始共用，把連結傳給朋友')}
@@ -1674,7 +1684,7 @@ function collabSheet(){
 
 /* 開啟 ?join=... 的分享連結 */
 async function joinFromLink(key,api){
-  const url=(api||DB.syncUrl||'').replace(/\/+$/,'');
+  const url=normUrl(api||DB.syncUrl||'');
   if(!url)return toast('連結缺少伺服器資訊');
   DB.syncUrl=url;
   const exist=DB.trips.find(x=>x.sync&&x.sync.key===key);
@@ -1697,13 +1707,30 @@ async function joinFromLink(key,api){
 function parseKML(text){
   const doc=new DOMParser().parseFromString(text,'application/xml');
   if(doc.querySelector('parsererror'))throw new Error('KML 格式讀不懂');
+  const dataOf=(pm,label)=>{
+    for(const d of pm.getElementsByTagName('Data'))
+      if(d.getAttribute('name')===label)
+        return ((d.getElementsByTagName('value')[0]||{}).textContent||'').trim();
+    return '';
+  };
   return [...doc.getElementsByTagName('Placemark')].map(pm=>{
-    const name=(pm.getElementsByTagName('name')[0]||{}).textContent||'';
+    const name=((pm.getElementsByTagName('name')[0]||{}).textContent||'').trim();
     const desc=(pm.getElementsByTagName('description')[0]||{}).textContent||'';
-    const co=(pm.getElementsByTagName('coordinates')[0]||{}).textContent||'';
-    const [lng,lat]=co.trim().split(/\s+/)[0].split(',').map(Number);
-    return{name:name.trim(),note:desc.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,140),
-      lat:isFinite(lat)?lat:null,lng:isFinite(lng)?lng:null,address:''};
+    /* 我的地圖若是從表格匯入、用「地名」定位，匯出的 KML 只有 <address>，沒有座標。
+       這時候把 address 留著當搜尋關鍵字，之後交給 OSM 逐一定位。 */
+    const addr=((pm.getElementsByTagName('address')[0]||{}).textContent||'').trim();
+    const co=((pm.getElementsByTagName('coordinates')[0]||{}).textContent||'').trim();
+    const nums=co?co.split(/\s+/)[0].split(',').map(Number):[];
+    const ok=nums.length>=2&&isFinite(nums[0])&&isFinite(nums[1]);
+    const lng=ok?nums[0]:null,lat=ok?nums[1]:null;
+    /* ExtendedData 的欄位比 description 乾淨（description 會把空欄位也印出來） */
+    const url=dataOf(pm,'網址')||dataOf(pm,'URL')||
+      ((desc.match(/https?:\/\/[^\s<"]+/)||[])[0]||'');
+    const note=[dataOf(pm,'筆記'),dataOf(pm,'留言'),dataOf(pm,'標籤')].filter(Boolean).join(' ・ ')||
+      desc.replace(/<[^>]*>/g,' ').replace(/https?:\/\/\S+/g,' ')
+          .replace(/(筆記|網址|標籤|留言)\s*:/g,' ').replace(/\s+/g,' ').trim();
+    return{name,note:note.slice(0,140),url,lat,lng,
+      address:(addr&&addr!==name)?addr:''};
   }).filter(x=>x.name||x.lat!=null);
 }
 function parseCSV(text){
@@ -1804,7 +1831,12 @@ teamLab Planets
     });
     const fresh=items.filter(x=>!x.dup).length;
     const have=items.filter(x=>x.lat!=null).length;
-    $('#im_res').innerHTML=`
+    const noGeo=(fromMap&&have===0&&items.length>2)
+      ? `<div class="resmsg">ℹ️ 這張「我的地圖」是從表格匯入、用<b>地名</b>定位的，
+           Google 匯出時只給地名不給座標。按下匯入後，App 會自動用 OpenStreetMap
+           逐一查（每秒一筆，約 ${Math.ceil(items.length*1.2/60)} 分鐘），
+           查不到的會標成「需定位」，之後手動補即可。</div>` : '';
+    $('#im_res').innerHTML=noGeo+`
       <div class="imbar">共 ${items.length} 個 ・ ${fresh} 個是新的 ・ ${have} 個已有座標
         <button class="lnk" id="im_all" style="margin-left:auto">全選／全不選</button></div>
       <div class="imlist">${items.map((x,i)=>`
@@ -1823,10 +1855,10 @@ teamLab Planets
   };
 
   const loadMap=async(mid)=>{
-    if(!DB.syncUrl)return show('要讀我的地圖連結，需要先在「👥 共同編輯」設定 Worker 網址。');
+    if(!syncBase())return show('要讀我的地圖連結，需要先在「👥 共同編輯」設定 Worker 網址。');
     show('讀取我的地圖中…');
     try{
-      const base=String(DB.syncUrl||'').trim().replace(/\/+$/,'');
+      const base=syncBase();
       const api=`${base}/kml?mid=${encodeURIComponent(mid)}`;
       const r=await fetch(api);
       const body=await r.text();
