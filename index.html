@@ -121,8 +121,12 @@ main{flex:1;overflow-y:auto;padding:2px 16px 300px;position:relative;overscroll-
 .newbtn{width:100%;padding:11px;border-radius:12px;border:1px dashed #cfcbc2;background:#fafaf8;
   color:var(--ink2);font-size:13px;cursor:pointer;margin-bottom:10px}
 .pfilter{margin-bottom:10px}
-.pfilter input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:11px;
+.pq{position:relative}
+.pfilter input{width:100%;padding:9px 34px 9px 11px;border:1px solid var(--line);border-radius:11px;
   font-size:13.5px;background:#fafaf8;color:var(--ink)}
+.pqx{position:absolute;right:3px;top:50%;transform:translateY(-50%);display:none;border:0;background:none;
+  font-size:17px;line-height:1;color:var(--ink3);cursor:pointer;padding:5px 9px}
+.pq.has .pqx{display:block}
 .pcats{display:flex;gap:6px;overflow-x:auto;margin-top:8px;padding-bottom:2px;scrollbar-width:none}
 .pcats::-webkit-scrollbar{display:none}
 .pcats button{flex:none;padding:5px 10px;border-radius:9px;border:1px solid var(--line);background:#fff;
@@ -167,6 +171,44 @@ main{flex:1;overflow-y:auto;padding:2px 16px 300px;position:relative;overscroll-
   border-radius:0 6px 0 0;color:var(--ink2);z-index:3;text-decoration:none}
 .minimap{height:180px;border-radius:12px;margin-top:9px;border:1px solid var(--line)}
 #mapView{flex:1;display:none;position:relative}
+
+/* ── 總覽表：欄＝天，列＝時間 ── */
+#ovw{flex:1;display:none;overflow:auto;background:#fff;border-top:1px solid var(--line);
+  overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.ovwin{display:inline-block;min-width:100%}
+.ovwhd{display:flex;position:sticky;top:0;z-index:4;background:#fff;box-shadow:0 1px 0 var(--line)}
+.ovwcorner{position:sticky;left:0;z-index:5;background:#fff;flex:none;width:46px;
+  border-right:1px solid var(--line)}
+.ovwdh{flex:none;padding:6px 6px 7px;text-align:center;border-right:1px solid var(--line);
+  cursor:pointer;line-height:1.25}
+.ovwdh b{display:block;font-size:12px}
+.ovwdh small{display:block;font-size:9.5px;color:var(--ink2)}
+.ovwdh .s{display:block;font-size:9.5px;margin-top:2px;color:var(--accent);font-variant-numeric:tabular-nums}
+.ovwdh .s.bad{color:var(--warn)}
+.ovwdh.on{background:var(--ink)}
+.ovwdh.on b{color:#fff}
+.ovwdh.on small{color:#b9b6b0}
+.ovwdh.on .s{color:#8fcfc5}
+.ovwdh.on .s.bad{color:#ffb59a}
+.ovwbd{display:flex;align-items:flex-start}
+.ovwax{position:sticky;left:0;z-index:2;flex:none;width:46px;background:#fff;
+  border-right:1px solid var(--line)}
+.ovwax i{position:absolute;left:0;width:46px;font-size:9.5px;color:var(--ink3);font-style:normal;
+  transform:translateY(-50%);text-align:right;padding-right:5px;font-variant-numeric:tabular-nums}
+.ovwcols{flex:none;position:relative}
+.ovwln{position:absolute;left:0;right:0;border-top:1px solid #f0eeea}
+.ovwcol{position:absolute;top:0;bottom:0;border-right:1px solid var(--line)}
+.ovwb{position:absolute;left:3px;right:4px;border-radius:6px;overflow:hidden;cursor:pointer;
+  padding:2px 4px 2px 7px;font-size:10px;line-height:1.25;color:var(--ink);background:#fff;
+  border:1px solid var(--line);box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.ovwb .k{position:absolute;left:0;top:0;bottom:0;width:3px}
+.ovwb .n{display:block;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ovwb .t{display:block;color:var(--ink3);font-size:9px;font-variant-numeric:tabular-nums}
+.ovwb.warn{border-color:var(--warn)}
+.ovwlodge{position:absolute;left:3px;right:4px;font-size:9px;color:var(--ink2);
+  background:#f4f2ee;border-radius:5px;padding:2px 4px;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.ovwtip{padding:9px 16px;font-size:11px;color:var(--ink3);text-align:center}
 #mapView .zoom{bottom:78px}
 #mapView .attr{bottom:68px}
 .mapempty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;z-index:2;
@@ -314,6 +356,7 @@ label.f{display:block;font-size:11.5px;color:var(--ink2);margin:11px 0 4px}
   </div>
   <main id="tl"></main>
   <div id="mapView"></div>
+  <div id="ovw"></div>
   <button class="fab" id="fab">＋</button>
   <div class="sheet" id="sheet">
     <div class="shead" id="shead"><div class="hbar"></div>
@@ -322,7 +365,10 @@ label.f{display:block;font-size:11.5px;color:var(--ink2);margin:11px 0 4px}
     <div class="pool">
       <button class="newbtn" id="newPool">＋ 新增候選行程</button>
       <div class="pfilter" id="poolFilter">
-        <input id="poolQ" placeholder="搜尋候選行程…" autocomplete="off">
+        <div class="pq" id="poolQwrap">
+          <input id="poolQ" placeholder="搜尋候選行程…" autocomplete="off">
+          <button type="button" class="pqx" id="poolQx" aria-label="清除搜尋">×</button>
+        </div>
         <div class="pcats" id="poolCats"></div>
         <div class="psort" id="poolSort">
           <button data-ps="order">加入順序</button>
@@ -359,7 +405,7 @@ const MODES={walk:{i:'🚶',n:'走路',k:4.6},transit:{i:'🚃',n:'大眾運輸'
 const EMOJI=['📍','⛩️','🏯','🌳','🌸','🗼','🏰','🎡','🏖️','⛰️','🍜','🍣','🍢','🍰','☕','🍺','🛍️','🎮','🏨','🚉','✈️','🚌','💡','🎨','🎢','♨️','🎁','✨'];
 const WD=['日','一','二','三','四','五','六'];
 const KEY='travelPlanner.v1';
-const APP_VER='v2026.08.13h';
+const APP_VER='v2026.08.14a';
 const PX=.62, MINH=56;
 
 /* ══════════════════ 工具 ══════════════════ */
@@ -369,6 +415,13 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const toM=t=>{const[a,b]=(t||'0:00').split(':').map(Number);return (a||0)*60+(b||0)};
 const fmt=m=>{const d=Math.floor(m/1440),x=((m%1440)+1440)%1440;
   return (d>0?'翌':'')+String(Math.floor(x/60)).padStart(2,'0')+':'+String(x%60).padStart(2,'0')};
+/* 交通／空檔用「1 小時 20 分」比純分鐘好判斷；停留時間仍用緊湊的 1h20 以免卡片撐爆 */
+const minTxt=m=>{
+  m=Math.round(+m||0);
+  if(m<60)return m+' 分';
+  const h=Math.floor(m/60),r=m%60;
+  return r?`${h} 小時 ${r} 分`:`${h} 小時`;
+};
 const durTxt=m=>!m?'0m':m>=60?(m%60?`${Math.floor(m/60)}h${m%60}`:`${Math.floor(m/60)}h`):`${m}m`;
 const hOf=d=>Math.max(MINH,Math.round(d*PX));
 const dateOf=i=>{const d=new Date(S.trip.startDate+'T00:00:00');d.setDate(d.getDate()+i);return d};
@@ -778,6 +831,20 @@ function renderHead(){
   $('#days').innerHTML=S.days.map((d,i)=>
     `<div class="day ${i===day?'on':''}" data-d="${i}"><b>Day ${i+1}</b><small>${dLabel(i)} ${wLabel(i)}</small></div>`
   ).join('')+`<div class="day add" id="addDay">＋</div>`;
+  centerDayChip();
+}
+
+/* 換天時把上方那顆 Day 捲到中間，不然滑到後面幾天會看不到自己在哪 */
+let chipAt=-1;
+function centerDayChip(){
+  const bar=$('#days');if(!bar)return;
+  const el=bar.querySelector('.day.on');if(!el)return;
+  const smooth=chipAt>=0&&chipAt!==day;
+  if(chipAt===day&&bar._n===S.days.length)return;      // 沒換天就別一直捲
+  chipAt=day;bar._n=S.days.length;
+  const to=Math.max(0,Math.min(el.offsetLeft-(bar.clientWidth-el.offsetWidth)/2,
+                               bar.scrollWidth-bar.clientWidth));
+  try{bar.scrollTo({left:to,behavior:smooth?'smooth':'auto'})}catch(e){bar.scrollLeft=to}
 }
 
 function render(){
@@ -796,8 +863,8 @@ function render(){
     const M=MODES[tr.mode];
     return `<div class="tr"><div class="tcol"></div><div>
       <span class="trchip ${tr.man?'man':''}" data-tr="${key}">${M.i} ${M.n}
-        <span class="m">${tr.min==null?'需填寫':tr.min+' 分'}</span>${tr.man?' ✎':' ~'}</span>
-      ${idle?`<span class="gap">💤 空檔 ${idle} 分</span>`:''}</div></div>`;
+        <span class="m">${tr.min==null?'需填寫':minTxt(tr.min)}</span>${tr.man?' ✎':' ~'}</span>
+      ${idle?`<span class="gap">💤 空檔 ${minTxt(idle)}</span>`:''}</div></div>`;
   };
   let h='<div class="ins" id="ins"></div>';
   if(d.fromL)h+=`<div class="lodge" data-lodge="${d.fromL.id}">🏨 <b>${esc(d.fromL.name)}</b>
@@ -813,7 +880,7 @@ function render(){
           <div class="ttl">${c.emoji||CAT[c.cat].e}<span>${esc(c.name)}</span></div>
           <div class="meta"><span class="tag">${CAT[c.cat].n}</span>停留 ${durTxt(c.dur)}
             ${c.pin?`<span class="tag pin">📌 ${c.pin}</span>`:''}
-            ${c.late?`<span class="tag warn">遲 ${c.late} 分</span>`:''}
+            ${c.late?`<span class="tag warn">遲 ${minTxt(c.late)}</span>`:''}
             ${+c.cost?`<span>${S.trip.currency}${(+c.cost).toLocaleString()}</span>`:''}</div>
           ${c.note?`<div class="note">${esc(c.note)}</div>`:''}
         </div>
@@ -833,6 +900,7 @@ function render(){
   $('#tl').innerHTML=h;
   renderPool();
   if(viewMode==='map')renderMapView();
+  if(viewMode==='ovw')renderOvw();
   save();
 }
 
@@ -859,6 +927,8 @@ function renderPool(){
   if(poolSort==='near')list.sort((a,b)=>(a.d??1e9)-(b.d??1e9));
   if(poolSort==='votes')list.sort((a,b)=>((b.c.votes||[]).length)-((a.c.votes||[]).length));
 
+  $('#poolQ').value=poolQ;                        // 換旅程時 poolQ 會被清掉，欄位要跟著清
+  $('#poolQwrap').classList.toggle('has',!!poolQ);
   const filtering=!!q||poolCat!=='all';
   $('#poolN').textContent=filtering?`顯示 ${list.length} / ${all.length}`:`${all.length} 個待安排`;
   $('#poolFilter').style.display=all.length?'':'none';
@@ -888,6 +958,9 @@ function initPoolFilter(){
     poolCat=poolCat===b.dataset.pcat&&b.dataset.pcat!=='all'?'all':b.dataset.pcat;renderPool();
   });
   $('#poolQ').addEventListener('input',e=>{poolQ=e.target.value;renderPool()});
+  $('#poolQx').addEventListener('click',()=>{
+    poolQ='';$('#poolQ').value='';renderPool();$('#poolQ').focus();
+  });
   $('#poolSort').addEventListener('click',e=>{
     const b=e.target.closest('[data-ps]');if(!b)return;
     if(b.dataset.ps==='near'&&!dayCenter())return toast('這天還沒有帶座標的行程，無法比距離');
@@ -1081,14 +1154,78 @@ function renderMapView(){
     msg.innerHTML=need;
   }else if(msg)msg.remove();
 }
+/* ── 總覽表：一欄一天、直軸是時間 ──
+   每天各自算過時間才畫得出來（render() 只算當前這天），所以這裡重跑 compute。 */
+const OVW_PXM=0.9, OVW_COLW=116, OVW_AX=46;
+function renderOvw(){
+  const days=S.days.map((d,i)=>({d,i,r:compute(d,i)}));
+  let t0=1/0,t1=-1/0;
+  days.forEach(({d,r})=>{
+    t0=Math.min(t0,toM(d.start));t1=Math.max(t1,r.end);
+    d.items.forEach(c=>{t0=Math.min(t0,c.s);t1=Math.max(t1,c.e)});
+  });
+  if(!isFinite(t0)||!isFinite(t1)||t1<=t0){t0=8*60;t1=20*60}
+  t0=Math.max(0,Math.floor(t0/60)*60-30);t1=Math.ceil(t1/60)*60+30;
+  const H=Math.max(240,(t1-t0)*OVW_PXM), y=m=>(m-t0)*OVW_PXM;
+
+  let ax='',ln='';
+  for(let m=Math.ceil(t0/60)*60;m<=t1;m+=60){
+    ax+=`<i style="top:${y(m)}px">${String(Math.floor(m/60)%24).padStart(2,'0')}:00</i>`;
+    ln+=`<div class="ovwln" style="top:${y(m)}px"></div>`;
+  }
+  const hd=days.map(({d,i,r})=>{
+    const s=r.warn?`⚠ ${r.warn} 項來不及`
+      :r.cost?`${S.trip.currency}${r.cost.toLocaleString()}`
+      :d.items.length?`${d.items.length} 項`:'—';
+    return `<div class="ovwdh ${i===day?'on':''}" data-ovd="${i}" style="width:${OVW_COLW}px">
+      <b>Day ${i+1}</b><small>${dLabel(i)} ${wLabel(i)}</small>
+      <span class="s ${r.warn?'bad':''}">${s}</span></div>`;
+  }).join('');
+  const cols=days.map(({d,i,r})=>{
+    let b='';
+    d.items.forEach(c=>{
+      b+=`<div class="ovwb ${c.late?'warn':''}" data-ovb="${i}|${c.id}"
+        style="top:${y(c.s)}px;height:${Math.max(24,c.dur*OVW_PXM-2)}px">
+        <span class="k" style="background:${CAT[c.cat].c}"></span>
+        <span class="n">${c.emoji||CAT[c.cat].e} ${esc(c.name)}</span>
+        <span class="t">${fmt(c.s)}–${fmt(c.e)}</span></div>`;
+    });
+    if(d.toL)b+=`<div class="ovwlodge" data-ovd="${i}" style="top:${y(r.end)+3}px">🏨 ${esc(d.toL.name)}</div>`;
+    return `<div class="ovwcol" style="left:${i*OVW_COLW}px;width:${OVW_COLW}px">${b}</div>`;
+  }).join('');
+
+  const el=$('#ovw');
+  el.innerHTML=`<div class="ovwin" style="width:${OVW_AX+days.length*OVW_COLW}px">
+    <div class="ovwhd"><div class="ovwcorner"></div>${hd}</div>
+    <div class="ovwbd">
+      <div class="ovwax" style="height:${H}px">${ax}</div>
+      <div class="ovwcols" style="height:${H}px;width:${days.length*OVW_COLW}px">${ln}${cols}</div>
+    </div></div>`;
+  el.scrollLeft=Math.max(0,day*OVW_COLW-(el.clientWidth-OVW_AX-OVW_COLW)/2);
+}
+$('#ovw').addEventListener('click',e=>{
+  const b=e.target.closest('[data-ovb]'),h=e.target.closest('[data-ovd]');
+  if(!b&&!h)return;
+  const [di,id]=b?b.dataset.ovb.split('|'):[h.dataset.ovd,null];
+  day=+di;viewMode='list';applyView();render();
+  if(id){const el=$('#tl').querySelector(`[data-id="${id}"]`);
+    if(el)el.scrollIntoView({block:'center',behavior:'smooth'})}
+});
+
+/* 清單 → 地圖 → 總覽 → 清單。按鈕上顯示的是「按下去會切到哪」 */
+function applyView(){
+  const m=viewMode;
+  $('#tl').style.display=m==='list'?'':'none';
+  $('#mapView').style.display=m==='map'?'block':'none';  // CSS 預設是 none，不能只清掉 inline style
+  $('#ovw').style.display=m==='ovw'?'block':'none';
+  $('#fab').style.display=m==='list'?'':'none';
+  $('#viewBtn').innerHTML=m==='list'?'🗺 地圖':m==='map'?'▦ 總覽':'📋 清單';
+  if(m==='map')renderMapView();
+  if(m==='ovw')renderOvw();
+}
 $('#viewBtn').onclick=()=>{
-  viewMode=viewMode==='list'?'map':'list';
-  const map=viewMode==='map';
-  $('#tl').style.display=map?'none':'';
-  $('#mapView').style.display=map?'block':'none';   // CSS 預設是 none，不能只清掉 inline style
-  $('#fab').style.display=map?'none':'';
-  $('#viewBtn').innerHTML=map?'📋 清單':'🗺 地圖';
-  if(map)renderMapView();
+  viewMode=viewMode==='list'?'map':viewMode==='map'?'ovw':'list';
+  applyView();
 };
 $('#fab').onclick=()=>editActivity(null,'day');
 $('#ttl').onclick=tripSettings;
@@ -1337,15 +1474,21 @@ function editTransit(key){
       `<button data-m="${k}" class="${tr.mode===k?'on':''}">${m.i} ${m.n}</button>`).join('')}</div>
     <label class="f">交通時間（分鐘）</label>
     <input type="number" id="m_min" value="${tr.min??''}" placeholder="分鐘">
+    <div id="m_hint" style="font-size:11px;color:var(--ink2);margin-top:4px">${
+      tr.min==null?'':'＝ '+minTxt(tr.min)}</div>
     <label class="f">備註（班次、月台、車資…）</label>
     <input id="m_note" value="${esc(tr.note||'')}" placeholder="JR 山手線 外回">
     <button class="mbtn" id="ok">儲存</button>
     ${d!=null?'<button class="mbtn gh" id="re">↻ 用估算值重算</button>':''}`);
   let mode=tr.mode;
+  const hint=()=>{const v=$('#m_min').value;
+    $('#m_hint').textContent=v===''?'':'＝ '+minTxt(+v)};
+  $('#m_min').addEventListener('input',hint);
   $('#m_mode').querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{
     $('#m_mode').querySelectorAll('[data-m]').forEach(x=>x.classList.remove('on'));
     b.classList.add('on');mode=b.dataset.m;
     const est=estimate(prev,c,mode);if(est!=null)$('#m_min').value=est;
+    hint();
   });
   $('#ok').onclick=()=>{
     const val=$('#m_min').value===''?null:+$('#m_min').value;
@@ -2063,7 +2206,7 @@ $('#drawer').onclick=e=>{if(e.target.id==='drawer')closeDrawer()};
 
 function switchTrip(id){
   DB.currentId=id;S=curTrip();day=0;poolQ='';poolCat='all';poolSort='order';
-  if(viewMode==='map')$('#viewBtn').click();      // 切回清單，避免地圖停在舊行程
+  if(viewMode!=='list'){viewMode='list';applyView()}   // 切回清單，避免畫面停在舊旅程
   $('#poolQ').value='';$('#sheet').classList.remove('open');
   syncDayCount();closeDrawer();render();
 }
