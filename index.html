@@ -282,9 +282,9 @@ label.f{display:block;font-size:11.5px;color:var(--ink2);margin:11px 0 4px}
 </div>
 <div class="drawer" id="drawer">
   <div class="dpanel">
-    <div class="dhead">我的行程</div>
+    <div class="dhead">我的旅程</div>
     <div class="dlist" id="tripList"></div>
-    <button class="newbtn" id="newTrip" style="margin:0 14px 16px;width:auto;display:block">＋ 新增行程</button>
+    <button class="newbtn" id="newTrip" style="margin:0 14px 16px;width:auto;display:block">＋ 新增旅程</button>
   </div>
 </div>
 <div class="mask" id="mask"><div class="modal" id="modal"></div></div>
@@ -304,6 +304,7 @@ const MODES={walk:{i:'🚶',n:'走路',k:4.6},transit:{i:'🚃',n:'大眾運輸'
 const EMOJI=['📍','⛩️','🏯','🌳','🌸','🗼','🏰','🎡','🏖️','⛰️','🍜','🍣','🍢','🍰','☕','🍺','🛍️','🎮','🏨','🚉','✈️','🚌','💡','🎨','🎢','♨️','🎁','✨'];
 const WD=['日','一','二','三','四','五','六'];
 const KEY='travelPlanner.v1';
+const APP_VER='v2026.08.13';
 const PX=.62, MINH=56;
 
 /* ══════════════════ 工具 ══════════════════ */
@@ -559,7 +560,7 @@ let DB=null,S=null,day=0;
 const curTrip=()=>DB.trips.find(t=>t.id===DB.currentId)||DB.trips[0];
 
 function blankTrip(title,from,to){
-  return{id:nid(),trip:{title:title||'新的行程',startDate:from,endDate:to,currency:'NT$',area:''},
+  return{id:nid(),trip:{title:title||'新的旅程',startDate:from,endDate:to,currency:'NT$',area:''},
     days:[],pool:[],lodgings:[]};
 }
 function seed(){const t=seedTrip();return{version:2,trips:[t],currentId:t.id}}
@@ -613,7 +614,7 @@ function fixTrip(t){
   if(!t.lodgings)t.lodgings=[];
   if(!t.pool)t.pool=[];
   if(!t.days)t.days=[];
-  if(!t.trip)t.trip={title:'未命名行程',startDate:'2026-01-01',currency:'NT$'};
+  if(!t.trip)t.trip={title:'未命名旅程',startDate:'2026-01-01',currency:'NT$'};
   if(!t.trip.endDate)t.trip.endDate=addDaysOn(t.trip.startDate,Math.max(0,t.days.length-1));
 }
 const addDaysOn=(s,n)=>{const x=new Date(s+'T00:00:00');x.setDate(x.getDate()+n);
@@ -692,7 +693,7 @@ function compute(d,idx){
 
 /* ══════════════════ 畫面 ══════════════════ */
 function renderHead(){
-  $('#ttl').textContent=S.trip.title||'未命名行程';
+  $('#ttl').textContent=S.trip.title||'未命名旅程';
   const n=S.days.length,last=dateOf(n-1);
   $('#subText').textContent=`${dLabel(0)} – ${last.getMonth()+1}/${last.getDate()} ・ ${n} 天${n>1?` ${n-1} 夜`:''}`;
   renderSyncBadge();
@@ -1265,7 +1266,7 @@ function pickDay(id){
 }
 
 function tripSettings(){
-  openModal(`<h3>行程設定</h3>
+  openModal(`<h3>旅程設定</h3>
     <p class="hint">天數由出發／結束日期自動決定，不用一天一天加。</p>
     <label class="f">名稱</label><input id="t_title" value="${esc(S.trip.title)}">
     <div class="two">
@@ -1305,14 +1306,15 @@ $('#menuBtn').onclick=()=>{
     <p class="hint">總預算 ${S.trip.currency}${total.toLocaleString()} ・ 共 ${S.days.reduce((a,d)=>a+d.items.length,0)} 個行程
       ・ 資料存在這台裝置的瀏覽器裡，<b>請定期匯出備份</b>。</p>
     <div class="menu">
-      <button id="mExp">⬇ 匯出備份（JSON）<small>會匯出「全部行程」，換手機或清快取前務必先匯出</small></button>
-      <button id="mImp">⬆ 匯入備份<small>會覆蓋全部行程</small></button>
-      <button id="mLodge">🏨 住宿管理<small>查看與編輯這趟旅行的所有住宿</small></button>
-      <button id="mCollab">👥 共同編輯<small>${curTrip().sync?'共用中，點此看分享連結':'把行程分享給朋友一起編輯'}</small></button>
+      <button id="mExp">⬇ 匯出備份（JSON）<small>會匯出「全部旅程」，換手機或清快取前務必先匯出</small></button>
+      <button id="mImp">⬆ 匯入備份<small>會覆蓋全部旅程</small></button>
+      <button id="mLodge">🏨 住宿管理<small>查看與編輯這趟旅程的所有住宿</small></button>
+      <button id="mCollab">👥 共同編輯<small>${curTrip().sync?'共用中，點此看分享連結':'把旅程分享給朋友一起編輯'}</small></button>
       <button id="mResolver">🔗 短網址解析服務<small>${DB.resolver?'已設定，Google 地圖分享連結可自動展開':'選填，設定後可自動展開 maps.app.goo.gl'}</small></button>
       <button id="mDay">🗑 刪除 Day ${day+1}<small>連同當天所有行程</small></button>
-      <button id="mReset" style="color:var(--warn)">↺ 全部重設<small>清空並回到範例行程</small></button>
+      <button id="mReset" style="color:var(--warn)">↺ 全部重設<small>清空並回到範例旅程</small></button>
     </div>
+    <div style="text-align:center;font-size:10.5px;color:var(--ink3);margin-top:14px">旅程積木 ${APP_VER}</div>
     <input type="file" id="mFile" accept="application/json" style="display:none">`);
   $('#mExp').onclick=()=>{
     const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
@@ -1448,9 +1450,9 @@ function conflictDialog(t,remote,mySnap){
   setSync('bad','有衝突');
   const who=remote.by?`${esc(remote.by)} `:'其他人 ';
   const when=remote.at?new Date(remote.at):null;
-  openModal(`<h3>這趟行程被別人改過了</h3>
+  openModal(`<h3>這趟旅程被別人改過了</h3>
     <p class="hint">${who}在${when?` ${String(when.getHours()).padStart(2,'0')}:${String(when.getMinutes()).padStart(2,'0')} `:''}
-      也改了這趟行程，而你手邊也有還沒同步的修改。兩份沒辦法自動合併，請選一邊。</p>
+      也改了這趟旅程，而你手邊也有還沒同步的修改。兩份沒辦法自動合併，請選一邊。</p>
     <button class="mbtn" id="cTheirs">載入他們的版本<br><small style="font-weight:400;opacity:.75">放棄我這邊還沒同步的修改</small></button>
     <button class="mbtn gh" id="cMine">用我的版本覆蓋<br><small style="font-weight:400;opacity:.75">他們剛才的修改會被蓋掉</small></button>
     <button class="mbtn gh" id="cExport">先把我的版本匯出備份</button>`);
@@ -1495,9 +1497,9 @@ function collabSheet(){
         ${t.sync.at?`最後同步 ${new Date(t.sync.at).toLocaleString()}${t.sync.by?`（${esc(t.sync.by)}）`:''}`:'尚未同步'}
         ・ 版本 ${t.sync.version??'-'}</div>
       <button class="mbtn" id="sv_now">立即同步</button>
-      <button class="mbtn dgr" id="sv_stop">停止共用這趟行程</button>`
-    :`<button class="mbtn" id="sv_start">開始共用這趟行程</button>`}
-    <label class="f">加入別人分享的行程</label>
+      <button class="mbtn dgr" id="sv_stop">停止共用這趟旅程</button>`
+    :`<button class="mbtn" id="sv_start">開始共用這趟旅程</button>`}
+    <label class="f">加入別人分享的旅程</label>
     <div class="linkbox"><input id="sv_join" placeholder="貼上朋友給你的分享連結"><button id="sv_joinbtn">加入</button></div>
     <div style="font-size:11px;color:var(--ink2);margin-top:5px">
       把 App 加到主畫面後，要在這裡貼連結才會加進來（主畫面的 App 和瀏覽器分頁的資料是分開的）。</div>`);
@@ -1526,7 +1528,7 @@ function collabSheet(){
     $('#sv_now').onclick=()=>{saveMeta();closeModal();syncNow()};
     $('#sv_stop').onclick=()=>{
       delete t.sync;save();closeModal();renderSyncBadge();
-      toast('已停止共用，這趟行程只留在這台裝置');
+      toast('已停止共用，這趟旅程只留在這台裝置');
     };
   }else{
     $('#sv_start').onclick=async()=>{
@@ -1550,14 +1552,14 @@ async function joinFromLink(key,api){
   setSync('busy','載入共用行程…');
   try{
     const r=await fetch(`${url}/t/${key}`);
-    if(!r.ok)throw new Error('找不到這趟行程');
+    if(!r.ok)throw new Error('找不到這趟旅程');
     const j=await r.json();
     let t=exist;
     if(!t){t={id:nid(),sync:{url,key,version:-1,snap:''},trip:null,days:[],pool:[],lodgings:[]};DB.trips.push(t)}
     applyRemote(t,j);
     DB.currentId=t.id;S=curTrip();day=0;
     syncDayCount();render();setSync('idle','');
-    toast(exist?'已更新共用行程':'已加入共用行程');
+    toast(exist?'已更新共用旅程':'已加入共用旅程');
   }catch(e){setSync('bad','載入失敗');toast('載入失敗：'+e.message)}
 }
 
@@ -1567,7 +1569,7 @@ function renderTrips(){
   $('#tripList').innerHTML=DB.trips.map(t=>{
     const items=t.days.reduce((a,d)=>a+d.items.length,0);
     return `<div class="trow ${t.id===DB.currentId?'on':''}">
-      <div class="g" data-trip="${t.id}"><b>${esc(t.trip.title||'未命名行程')}</b>
+      <div class="g" data-trip="${t.id}"><b>${esc(t.trip.title||'未命名旅程')}</b>
         <small>${t.sync?'👥 ':''}${md(t.trip.startDate)} – ${md(t.trip.endDate)} ・ ${t.days.length} 天 ・ ${items} 個行程</small></div>
       <button data-dup="${t.id}" title="複製">⧉</button>
       <button data-deltrip="${t.id}" title="刪除">🗑</button>
@@ -1596,22 +1598,22 @@ function dupTrip(id){
   DB.trips.push(c);save();renderTrips();toast('已複製一份');
 }
 function delTrip(id){
-  if(DB.trips.length<=1)return toast('至少要保留一趟行程');
+  if(DB.trips.length<=1)return toast('至少要保留一趟旅程');
   const t=DB.trips.find(x=>x.id===id);
-  openModal(`<h3>刪除「${esc(t.trip.title||'未命名行程')}」？</h3>
-    <p class="hint">整趟行程、候選池與住宿都會消失，無法復原。建議先匯出備份。</p>
+  openModal(`<h3>刪除「${esc(t.trip.title||'未命名旅程')}」？</h3>
+    <p class="hint">整趟旅程、候選池與住宿都會消失，無法復原。建議先匯出備份。</p>
     <button class="mbtn dgr" id="yes">確定刪除</button>
     <button class="mbtn gh" id="no">取消</button>`);
   $('#no').onclick=closeModal;
   $('#yes').onclick=()=>{
     DB.trips=DB.trips.filter(x=>x.id!==id);
     if(DB.currentId===id)DB.currentId=DB.trips[0].id;
-    S=curTrip();day=0;closeModal();syncDayCount();renderTrips();render();toast('已刪除行程');
+    S=curTrip();day=0;closeModal();syncDayCount();renderTrips();render();toast('已刪除旅程');
   };
 }
 $('#newTrip').onclick=()=>{
   const today=iso(new Date(S.trip.startDate+'T00:00:00'));
-  openModal(`<h3>新增行程</h3>
+  openModal(`<h3>新增旅程</h3>
     <label class="f">名稱</label><input id="n_title" placeholder="例：京都賞楓">
     <div class="two">
       <div><label class="f">出發日期</label><input type="date" id="n_from" value="${today}"></div>
@@ -1620,11 +1622,11 @@ $('#newTrip').onclick=()=>{
     <label class="f">主要地區（搜尋範圍，選填）</label><input id="n_area" placeholder="例：京都">
     <button class="mbtn" id="ok">建立</button>`);
   $('#ok').onclick=()=>{
-    const t=blankTrip($('#n_title').value.trim()||'新的行程',
+    const t=blankTrip($('#n_title').value.trim()||'新的旅程',
       $('#n_from').value||today,$('#n_to').value||addDaysOn(today,2));
     t.trip.area=$('#n_area').value.trim();
     DB.trips.push(t);DB.currentId=t.id;S=t;day=0;
-    closeModal();switchTrip(t.id);toast('已建立行程');
+    closeModal();switchTrip(t.id);toast('已建立旅程');
   };
 };
 
