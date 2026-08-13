@@ -359,7 +359,7 @@ const MODES={walk:{i:'🚶',n:'走路',k:4.6},transit:{i:'🚃',n:'大眾運輸'
 const EMOJI=['📍','⛩️','🏯','🌳','🌸','🗼','🏰','🎡','🏖️','⛰️','🍜','🍣','🍢','🍰','☕','🍺','🛍️','🎮','🏨','🚉','✈️','🚌','💡','🎨','🎢','♨️','🎁','✨'];
 const WD=['日','一','二','三','四','五','六'];
 const KEY='travelPlanner.v1';
-const APP_VER='v2026.08.13e';
+const APP_VER='v2026.08.13f';
 const PX=.62, MINH=56;
 
 /* ══════════════════ 工具 ══════════════════ */
@@ -1826,9 +1826,16 @@ teamLab Planets
     if(!DB.syncUrl)return show('要讀我的地圖連結，需要先在「👥 共同編輯」設定 Worker 網址。');
     show('讀取我的地圖中…');
     try{
-      const r=await fetch(`${DB.syncUrl}/kml?mid=${encodeURIComponent(mid)}`);
-      if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.error||('伺服器回應 '+r.status))}
-      items=parseKML(await r.text()).map(x=>({...x,sel:true}));
+      const base=String(DB.syncUrl||'').trim().replace(/\/+$/,'');
+      const api=`${base}/kml?mid=${encodeURIComponent(mid)}`;
+      const r=await fetch(api);
+      const body=await r.text();
+      if(!r.ok){
+        let msg='';try{msg=(JSON.parse(body)||{}).error||''}catch(_){}
+        if(!msg)msg='伺服器回應 '+r.status+'（'+body.replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,80)+'）';
+        throw new Error(msg+'｜網址：'+api);
+      }
+      items=parseKML(body).map(x=>({...x,sel:true}));
       fromMap=true;S.trip.mapMid=mid;save();
       preview();
       /* 地圖上被刪掉、但候選池還留著的 */
