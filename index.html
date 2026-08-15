@@ -133,6 +133,7 @@ main{flex:1;overflow-y:auto;padding:2px 16px 300px;position:relative;overscroll-
   font-size:11.5px;color:var(--ink2);cursor:pointer;white-space:nowrap}
 .pcats button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .pon{color:var(--accent);font-weight:600}
+.pc.lg{background:#f6f8f7;border-color:#cfe0dc}
 .pnone{text-align:center;color:var(--ink3);font-size:12.5px;padding:22px 0;line-height:1.7}
 
 /* ── 搜尋地點 ── */
@@ -426,7 +427,7 @@ const MODES={walk:{i:'🚶',n:'走路',k:4.6},transit:{i:'🚃',n:'大眾運輸'
 const EMOJI=['📍','⛩️','🏯','🌳','🌸','🗼','🏰','🎡','🏖️','⛰️','🍜','🍣','🍢','🍰','☕','🍺','🛍️','🎮','🏨','🚉','✈️','🚌','💡','🎨','🎢','♨️','🎁','✨'];
 const WD=['日','一','二','三','四','五','六'];
 const KEY='travelPlanner.v1';
-const APP_VER='v2026.08.15a';
+const APP_VER='v2026.08.15b';
 const PX=.62, MINH=56;
 
 /* ══════════════════ 工具 ══════════════════ */
@@ -977,7 +978,7 @@ function renderPool(){
   const filtering=!!q||poolCat!=='all'||poolUse!=='todo';
   $('#poolN').textContent=filtering?`顯示 ${list.length} / ${all.length}`
     :`${nTodo} 個待安排${all.length-nTodo?` ・ ${all.length-nTodo} 個已排入`:''}`;
-  $('#poolFilter').style.display=all.length?'':'none';
+  $('#poolFilter').style.display=(all.length||(S.lodgings||[]).length)?'':'none';
   $('#poolUse').querySelectorAll('[data-pu]').forEach(b=>
     b.classList.toggle('on',b.dataset.pu===poolUse));
   $('#poolCats').querySelectorAll('[data-pcat]').forEach(b=>
@@ -985,8 +986,27 @@ function renderPool(){
   $('#poolSort').querySelectorAll('[data-ps]').forEach(b=>
     b.classList.toggle('on',b.dataset.ps===poolSort));
 
+  /* 住宿也當成一塊積木列在這裡，這樣「白天先回飯店放行李、晚上再出門」排得出來。
+     它不佔「待安排」的數字 —— 住宿本來就一直在，不是待辦事項。 */
+  const lodgeRows=(S.lodgings||[]).filter(l=>{
+    const on=famDays(l.id).length>0;
+    return (poolUse==='all'||(poolUse==='done')===on)
+      && (poolCat==='all'||poolCat==='hotel')
+      && (!q||(l.name+' 住宿').toLowerCase().includes(q));
+  }).map(l=>{
+    const on=famDays(l.id),dd=center&&l.lat!=null?km(center,l):null;
+    return `<div class="pc lg">
+      <div class="ic" style="background:${CAT.hotel.c}22">🏨</div>
+      <div class="g" data-lodge="${l.id}"><div>${esc(l.name)}</div>
+        <div>住宿 ・ Day ${l.from+1}–${l.to+1}${
+          dd!=null?` ・ <span class="pdist">離今天 ${distTxt(dd)}</span>`:(l.lat==null?' ・ ⚠ 無座標':'')}${
+          on.length?` ・ <span class="pon">中途回 ${on.map(i=>'Day '+(i+1)).join('、')}</span>`:''}</div></div>
+      <div class="add" data-pool="${l.id}">${on.length?'再加一天':'中途回這裡'}</div>
+    </div>`;
+  }).join('');
+
   const me=DB.me||'我';
-  $('#poolList').innerHTML=list.length?list.map(({c,d})=>{
+  $('#poolList').innerHTML=(lodgeRows+(list.length?list.map(({c,d})=>{
     const v=c.votes||[],mine=v.includes(me);
     const on=used.get(c.id);
     return `<div class="pc">
@@ -997,8 +1017,8 @@ function renderPool(){
           on.length?` ・ <span class="pon">已排 ${on.map(i=>'Day '+(i+1)).join('、')}</span>`:''}</div></div>
       <div class="vt ${mine?'on':''}" data-vote="${c.id}" title="${esc(v.join('、'))}">👍${v.length||''}</div>
       <div class="add" data-pool="${c.id}">${on.length?'再加一天':'加入'}</div>
-    </div>`}).join('')
-   :`<div class="pnone">${
+    </div>`}).join(''):''))
+   ||`<div class="pnone">${
       poolUse==='done'&&!q&&poolCat==='all'?'還沒有候選行程被排進任何一天'
       :filtering?'沒有符合的候選行程<br>試試清掉搜尋或改選「全部」'
       :all.length?'候選行程都排進行程表了 🎉<br>切到「已加入」可以再排到別天'
@@ -1339,6 +1359,9 @@ function editActivity(id,where){
   const c=id?find(id):null;
   const v=c||{name:'',emoji:'📍',cat:'sight',dur:60,url:'',note:'',cost:'',lat:null,lng:null};
   const wasLodge=isLodge(c);
+  /* 有 lref = 排在某一天中途的「回住宿」積木，它是一般行程卡，
+     不能因為分類是「住宿」就切換成住宿區間表單。 */
+  const isBlock=!!(c&&c.lref);
   openModal(`<h3>${c?'編輯行程':'新增行程'}</h3>
     <label class="f">搜尋地點</label>
     <div class="srow"><input id="f_q" placeholder="名稱、地址、座標或 Google Maps 連結" autocomplete="off"><button id="f_go">搜尋</button></div>
@@ -1495,7 +1518,7 @@ function editActivity(id,where){
   $('#f_q').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();doSearch()}};
   /* 選「住宿」時，表單從「行程卡」切換成「住宿區間」 */
   const syncKind=()=>{
-    const L=cat==='hotel';
+    const L=cat==='hotel'&&!isBlock;
     $('#f_actBox').style.display=L?'none':'flex';
     $('#f_lodgeBox').style.display=L?'block':'none';
     if(L){
@@ -1534,10 +1557,18 @@ function editActivity(id,where){
     if(!name)return toast('請輸入名稱');
     const base={name,url:$('#f_url').value.trim(),note:$('#f_note').value.trim(),lat,lng};
 
-    if(cat==='hotel'){                                  // 存成住宿區間，不是行程卡
+    if(cat==='hotel'&&!isBlock){                        // 存成住宿區間，不是行程卡
       const from=+$('#f_lfrom').value,to=Math.max(from,+$('#f_lto').value);
       const L=Object.assign({},base,{from,to,costMode:$('#f_lmode').value,cost:+$('#f_lcost').value||0});
-      if(c&&wasLodge)Object.assign(c,L);
+      if(c&&wasLodge){
+        Object.assign(c,L);
+        const blocks=S.days.flatMap(d=>d.items.filter(x=>x.lref===c.id));
+        if(blocks.length){
+          const moved=blocks.some(x=>x.lat!==L.lat||x.lng!==L.lng);
+          blocks.forEach(x=>Object.assign(x,{name:L.name,lat:L.lat,lng:L.lng,url:L.url}));
+          if(moved)resetTrOfDays(famDays(c.id));
+        }
+      }
       else{if(c)removeFromAll(c.id);S.lodgings.push(Object.assign({id:nid()},L))}
       resetLodgeTr();closeModal();render();toast(c?'住宿已儲存':'已新增住宿');
       return;
@@ -1631,17 +1662,19 @@ function moveBack(id){
   const it=S.days[day].items,i=it.findIndex(x=>x.id===id);
   snapshot('移回候選');
   const [c]=it.splice(i,1);
-  const master=c.ref&&S.pool.find(x=>x.id===c.ref);
+  const master=c.ref&&(S.pool.find(x=>x.id===c.ref)||(S.lodgings||[]).find(x=>x.id===c.ref));
   if(!master){                                        // 本尊不在（直接用＋建的、或本尊已刪）才放回去
     c.open=false;c.pin=null;c.tr=null;delete c.ref;S.pool.push(c);
   }
   render();toast(master?'已從這天移除，候選池裡還留著':'已移回候選',true);
 }
 function pickDay(id){
-  const c=S.pool.find(x=>x.id===id);
-  openModal(`<h3>${c.emoji} ${esc(c.name)}</h3>
-    <p class="hint">要加到哪一天？會接在當天最後面，之後可以拖曳調整順序。<br>
-      加進去之後<b>候選池裡還會留著</b>，同一個地點可以排到好幾天。</p>
+  const c=S.pool.find(x=>x.id===id)||(S.lodgings||[]).find(x=>x.id===id);
+  if(!c)return;
+  openModal(`<h3>${isLodge(c)?'🏨':c.emoji} ${esc(c.name)}</h3>
+    <p class="hint">${isLodge(c)
+      ? '要在哪一天中途回住宿？會接在當天最後面，拖曳可以移到中間。<br>每天開頭與結尾的住宿<b>不受影響</b>，這是額外插入的一段。'
+      : '要加到哪一天？會接在當天最後面，之後可以拖曳調整順序。<br>加進去之後<b>候選池裡還會留著</b>，同一個地點可以排到好幾天。'}</p>
     <div class="opts">${S.days.map((d,i)=>{
       const has=d.items.some(x=>famOf(x)===famOf(c));
       return `<button data-day="${i}">Day ${i+1}${has?' ✓':''}<br>
@@ -1649,11 +1682,16 @@ function pickDay(id){
   $('#modal').querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{
     const i=+b.dataset.day;
     snapshot(`加入 Day ${i+1}`);
-    const copy=Object.assign({},c,{id:nid(),ref:famOf(c),open:false,pin:null,tr:null,votes:[]});
+    /* 住宿要重新造一顆乾淨的積木：不能帶 costMode/from/to，
+       否則會被 isLodge() 當成住宿區間，編輯時表單會跑掉。 */
+    const copy=isLodge(c)
+      ? {id:nid(),ref:c.id,lref:c.id,name:c.name,emoji:'🏨',cat:'hotel',dur:60,cost:0,
+         note:'',url:c.url||'',lat:c.lat??null,lng:c.lng??null,pin:null,tr:null,votes:[]}
+      : Object.assign({},c,{id:nid(),ref:famOf(c),open:false,pin:null,tr:null,votes:[]});
     if(!copy.dur)copy.dur=60;
     S.days[i].items.push(copy);day=i;                 // 本尊留在候選池，可以再加到別天
     closeModal();render();$('#sheet').classList.remove('open');
-    toast(`已加入 Day ${i+1}，候選池裡還留著`,true);
+    toast(isLodge(c)?`已插入 Day ${i+1}：中途回住宿`:`已加入 Day ${i+1}，候選池裡還留著`,true);
   });
 }
 
