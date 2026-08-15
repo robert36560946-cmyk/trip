@@ -231,9 +231,27 @@ label.f{display:block;font-size:11.5px;color:var(--ink2);margin:11px 0 4px}
 .opts button{flex:1;min-width:calc(33% - 5px);padding:10px 6px;border-radius:11px;border:1px solid var(--line);
   background:#fff;font-size:13px;cursor:pointer;text-align:center}
 .opts button.on{border-color:var(--ink);background:var(--ink);color:#fff}
-.opts.emo{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
-.opts.emo::-webkit-scrollbar{display:none}
-.opts.emo button{min-width:0;flex:none;width:44px;font-size:19px;padding:7px 0}
+/* ── 圖示下拉 ── */
+.emobtn{display:flex;align-items:center;gap:9px;width:100%;padding:9px 11px;border-radius:11px;
+  border:1px solid var(--line);background:#fff;cursor:pointer;color:var(--ink2);font-size:13px}
+.emobtn span{font-size:21px;line-height:1}
+.emobtn b{flex:1;text-align:left;font-weight:500}
+.emobtn i{font-style:normal;color:var(--ink3)}
+.emobtn.open i{transform:rotate(180deg);display:inline-block}
+.emopanel{margin-top:7px;border:1px solid var(--line);border-radius:12px;background:#fafaf8;padding:8px}
+.emocats{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:6px}
+.emocats::-webkit-scrollbar{display:none}
+.emocats button{flex:none;padding:5px 10px;border-radius:9px;border:1px solid var(--line);background:#fff;
+  font-size:11.5px;color:var(--ink2);cursor:pointer;white-space:nowrap}
+.emocats button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.emogrid{display:grid;grid-template-columns:repeat(8,1fr);gap:4px;max-height:186px;overflow-y:auto;
+  padding:6px 2px;overscroll-behavior:contain}
+.emogrid button{padding:5px 0;font-size:20px;line-height:1.15;border:1px solid transparent;border-radius:9px;
+  background:none;cursor:pointer}
+.emogrid button.on{border-color:var(--ink);background:#fff}
+.emoown{margin-top:4px}
+.emoown input{width:100%;padding:8px 10px!important;font-size:12.5px!important;border:1px solid var(--line);
+  border-radius:10px;background:#fff}
 .mbtn{width:100%;margin-top:15px;padding:13px;border-radius:12px;border:0;background:var(--ink);color:#fff;
   font-size:14.5px;font-weight:600;cursor:pointer}
 .mbtn.gh{background:#f2f0eb;color:var(--ink2);margin-top:8px}
@@ -424,10 +442,26 @@ const CAT={
 /* k = 平均時速 km/h（M1 用直線距離估算；M2 換成 Google Routes API 回傳真值） */
 const MODES={walk:{i:'🚶',n:'走路',k:4.6},transit:{i:'🚃',n:'大眾運輸',k:21},
              drive:{i:'🚗',n:'開車',k:24},taxi:{i:'🚕',n:'計程車',k:27},other:{i:'✈️',n:'其他',k:400}};
-const EMOJI=['📍','⛩️','🏯','🌳','🌸','🗼','🏰','🎡','🏖️','⛰️','🍜','🍣','🍢','🍰','☕','🍺','🛍️','🎮','🏨','🚉','✈️','🚌','💡','🎨','🎢','♨️','🎁','✨'];
+/* 圖示：分組收在下拉面板裡。用空白分隔而不是逐字拆，
+   因為 ⛩️ 這種帶變體選擇符、🧑‍🤝‍🧑 這種 ZWJ 組合，用 [...str] 會被切成兩半。
+   清單以外的 emoji 一律可以從面板底下的欄位直接輸入，等於全部都能用。 */
+const EMOJI_GROUPS=[
+  ['常用','📍 ⭐ ❤️ ✅ ❗ 🔥 ✨ 💡 🎯 📌 🕐 💰 🎫 📷 🗺️ 🧳'],
+  ['景點地標','⛩️ 🏯 🏰 🗼 🗽 🏛️ ⛪ 🕌 🛕 🕍 🗿 ⛲ 🌉 🎑 🏟️ 🏙️ 🌃 🌇 🌆 🏞️ 🎠 🎡 🎢 🎪 🏗️ 🏘️ 🏚️ 🏠 🏢 🏣 🏤 🏥 🏦 🏫 🏭 🚧 🧭 🪧'],
+  ['自然戶外','⛰️ 🏔️ 🌋 🗻 🏕️ ⛺ 🏖️ 🏝️ 🏜️ 🌊 💧 🌲 🌳 🌴 🌵 🌾 🌷 🌸 🌹 🌺 🌻 🌼 🍀 🍁 🍂 🍃 🌱 🌿 ☀️ 🌤️ ☁️ 🌧️ ⛈️ ❄️ ⛄ 🌈 🌙 ⭐ 🌟 🌌 🔭 🦋 🐟 🐠 🐚 🪸'],
+  ['美食','🍜 🍣 🍤 🍱 🍙 🍘 🍚 🍛 🍲 🍢 🍡 🥟 🥠 🍥 🍖 🍗 🥩 🥓 🍔 🍟 🌭 🍕 🥪 🌮 🌯 🥙 🧆 🥗 🥘 🫕 🍝 🥖 🥐 🍞 🧀 🥚 🍳 🥞 🧇 🥯 🥨 🍠 🌽 🥕 🥔 🧄 🧅 🍄 🥑 🍅 🥬 🥦 🦞 🦐 🦀 🐙 🦑'],
+  ['甜點飲料','🍰 🎂 🧁 🍮 🍩 🍪 🍫 🍬 🍭 🍦 🍨 🍧 🥧 🍯 🍎 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍑 🍒 🥭 🍍 🥥 🥝 🍐 ☕ 🍵 🧋 🥤 🧃 🍺 🍻 🍷 🥂 🍸 🍹 🍶 🥃 🧉 🍾 🥛'],
+  ['購物','🛍️ 🛒 🎁 👜 👛 🎒 👗 👕 👖 👔 👘 🥻 👟 👠 👢 🧢 👒 🎩 🧣 🧤 💄 💍 💎 ⌚ 👓 🕶️ 📱 💻 🎧 📚 📖 🖊️ 🧸 🪆 🃏 🀄 🧴 🧼 💊 🌂'],
+  ['交通','🚉 🚇 🚊 🚋 🚝 🚄 🚅 🚈 🚂 🚃 🚌 🚍 🚎 🚐 🚑 🚒 🚓 🚕 🚗 🚙 🛻 🚚 🛵 🏍️ 🚲 🛴 🛺 ✈️ 🛫 🛬 🚁 🚀 ⛵ 🛳️ ⛴️ 🚢 🚤 ⛽ 🚏 🛣️ 🗾 🎫 🛂 🛃 🛄 🛅'],
+  ['住宿休息','🏨 🏩 🛏️ 🛌 🏡 ⛱️ ♨️ 🧖 🛁 🚿 🧺 🔑 🗝️ 🪑 🛋️ 🚻 🧳 💤'],
+  ['娛樂活動','🎮 🕹️ 🎰 🎲 🎳 🎨 🎭 🎤 🎧 🎼 🎹 🎸 🥁 🎬 🎦 📺 🎪 🎠 🎡 🎢 🎣 🎿 🏂 🏄 🏊 🚴 🚵 🧗 🤿 🎽 ⚽ ⚾ 🏀 🏐 🏈 🎾 🏓 🏸 ⛳ 🥋 🎆 🎇 🎉 🎊 🏮 🎐 🎏 🎋 🧧'],
+  ['動物','🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐸 🐵 🙈 🐔 🐧 🐦 🐤 🦆 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🐛 🦋 🐌 🐞 🐢 🐍 🦎 🦕 🐳 🐬 🐟 🐠 🐡 🦈 🐙 🦀 🐘 🦒 🦓 🦌 🐐 🐑 🦙 🐫 🦥 🦦 🐕 🐈 🕊️'],
+  ['人與心情','😀 😃 😄 😁 😆 😊 🙂 😉 😍 🥰 😘 😋 😎 🤩 🥳 🤗 🤔 😐 😴 🥱 😷 🤒 🤧 🥵 🥶 😱 😭 😢 😤 😡 🙄 😬 🤯 👍 👎 👌 ✌️ 🙏 👏 💪 🚶 🏃 🧍 🧑‍🤝‍🧑 👨‍👩‍👧 💃 🕺'],
+  ['符號標記','❤️ 🧡 💛 💚 💙 💜 🖤 🤍 💯 ‼️ ⁉️ ❓ ❔ ⭕ ❌ ⚠️ 🚫 ✅ ☑️ 🔴 🟠 🟡 🟢 🔵 🟣 ⚫ ⚪ 🔶 🔷 🔸 🔹 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 🅰️ 🆗 🆙 🆕 🆓 💬 💭 🔔 🔕 ⏰ ⏳ 📅 📆 📝 🔖 🏷️'],
+];
 const WD=['日','一','二','三','四','五','六'];
 const KEY='travelPlanner.v1';
-const APP_VER='v2026.08.15b';
+const APP_VER='v2026.08.15c';
 const PX=.62, MINH=56;
 
 /* ══════════════════ 工具 ══════════════════ */
@@ -1357,7 +1391,7 @@ $('#startBtn').onclick=()=>{
 
 function editActivity(id,where){
   const c=id?find(id):null;
-  const v=c||{name:'',emoji:'📍',cat:'sight',dur:60,url:'',note:'',cost:'',lat:null,lng:null};
+  const v=c||{name:'',emoji:'',cat:'sight',dur:60,url:'',note:'',cost:'',lat:null,lng:null};
   const wasLodge=isLodge(c);
   /* 有 lref = 排在某一天中途的「回住宿」積木，它是一般行程卡，
      不能因為分類是「住宿」就切換成住宿區間表單。 */
@@ -1374,8 +1408,18 @@ function editActivity(id,where){
     <div class="opts" id="f_cat">${Object.entries(CAT).map(([k,x])=>
       `<button data-c="${k}" class="${(wasLodge||where==='lodge'?'hotel':v.cat)===k?'on':''}">${x.e} ${x.n}</button>`).join('')}</div>
     <label class="f">圖示</label>
-    <div class="opts emo" id="f_emo">${EMOJI.map(x=>
-      `<button data-e="${x}" class="${v.emoji===x?'on':''}">${x}</button>`).join('')}</div>
+    <button type="button" class="emobtn" id="f_emobtn">
+      <span id="f_emocur">${v.emoji
+        ||CAT[(wasLodge||where==='lodge')?'hotel':(CAT[v.cat]?v.cat:'sight')].e}</span>
+      <b>換一個圖示</b><i>▾</i></button>
+    <div class="emopanel" id="f_emopanel" style="display:none">
+      <div class="emocats" id="f_emocats">${EMOJI_GROUPS.map(([n],i)=>
+        `<button type="button" data-eg="${i}" class="${i?'':'on'}">${n}</button>`).join('')}</div>
+      <div class="emogrid" id="f_emogrid"></div>
+      <div class="emoown">
+        <input id="f_emoin" placeholder="找不到？用鍵盤的 😀 直接輸入任何 emoji" autocomplete="off">
+      </div>
+    </div>
     <div class="two" id="f_actBox">
       <div><label class="f">停留時間（分鐘）</label><input type="number" id="f_dur" value="${v.dur||60}" step="15" min="0"></div>
       <div><label class="f">花費（${S.trip.currency}）</label><input type="number" id="f_cost" value="${v.cost||''}" placeholder="0"></div>
@@ -1402,7 +1446,9 @@ function editActivity(id,where){
     <button class="mbtn" id="ok">${c?'儲存':(where==='pool'?'加入候選':`加到 Day ${day+1}`)}</button>
     ${c?'<button class="mbtn dgr" id="rm">刪除這個行程</button>':''}`);
 
-  let lat=v.lat,lng=v.lng,emoji=v.emoji,cat=wasLodge?'hotel':(where==='lodge'?'hotel':v.cat),fmap=null;
+  let lat=v.lat,lng=v.lng,cat=wasLodge?'hotel':(where==='lodge'?'hotel':v.cat),fmap=null;
+  if(!CAT[cat])cat='sight';
+  let emoji=v.emoji||CAT[cat].e;
   let catTouched=!!c||where==='lodge';   // 已存在或明確要新增住宿時，不讓搜尋結果覆蓋分類
   const pick=(sel,attr,cb)=>$(sel).querySelectorAll('['+attr+']').forEach(b=>b.onclick=()=>{
     $(sel).querySelectorAll('['+attr+']').forEach(x=>x.classList.remove('on'));b.classList.add('on');cb(b);});
@@ -1534,10 +1580,47 @@ function editActivity(id,where){
   $('#f_lmode').value=wasLodge?(v.costMode||'night'):'night';
   $('#f_lfrom').onchange=$('#f_lto').onchange=syncKind;
   syncKind();
+  /* ── 圖示下拉 ── */
+  let emoTouched=!!(c&&c.emoji);          // 使用者還沒挑過的話，換分類時圖示跟著換
+  let emoGroup=0;
+  const setEmoji=e=>{
+    if(!e)return;
+    emoji=e;emoTouched=true;
+    $('#f_emocur').textContent=e;
+    $('#f_emogrid').querySelectorAll('[data-e]').forEach(x=>
+      x.classList.toggle('on',x.dataset.e===e));
+  };
+  const drawEmoGrid=()=>{
+    $('#f_emogrid').innerHTML=EMOJI_GROUPS[emoGroup][1].split(' ').map(x=>
+      `<button type="button" data-e="${x}" class="${emoji===x?'on':''}">${x}</button>`).join('');
+  };
+  drawEmoGrid();
+  $('#f_emobtn').onclick=()=>{
+    const el=$('#f_emopanel'),open=el.style.display==='none';
+    el.style.display=open?'block':'none';
+    $('#f_emobtn').classList.toggle('open',open);
+    if(open)el.scrollIntoView({block:'nearest',behavior:'smooth'});
+  };
+  $('#f_emocats').onclick=e=>{
+    const b=e.target.closest('[data-eg]');if(!b)return;
+    $('#f_emocats').querySelectorAll('[data-eg]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');emoGroup=+b.dataset.eg;drawEmoGrid();
+  };
+  $('#f_emogrid').onclick=e=>{
+    const b=e.target.closest('[data-e]');if(!b)return;
+    setEmoji(b.dataset.e);
+  };
+  /* 清單裡沒有的照樣能用 —— 手機鍵盤的 😀 打什麼都收 */
+  $('#f_emoin').oninput=e=>{
+    const v=[...e.target.value.trim()];
+    if(!v.length)return;
+    const one=e.target.value.trim();
+    setEmoji(one.length<=8?one:v.slice(0,2).join(''));
+  };
+
   pick('#f_cat','data-c',b=>{cat=b.dataset.c;catTouched=true;
-    const em=$('#f_emo');if(![...em.querySelectorAll('.on')].length)emoji=CAT[cat].e;
+    if(!emoTouched){emoji=CAT[cat].e;$('#f_emocur').textContent=emoji;drawEmoGrid()}
     syncKind();});
-  pick('#f_emo','data-e',b=>emoji=b.dataset.e);
   $('#f_url').oninput=()=>{
     const g=parseLatLng($('#f_url').value);
     if(g){setGeo(g.lat,g.lng)}
