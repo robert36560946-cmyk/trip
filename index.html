@@ -132,6 +132,7 @@ main{flex:1;overflow-y:auto;padding:2px 16px 300px;position:relative;overscroll-
 .pcats button{flex:none;padding:5px 10px;border-radius:9px;border:1px solid var(--line);background:#fff;
   font-size:11.5px;color:var(--ink2);cursor:pointer;white-space:nowrap}
 .pcats button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.pon{color:var(--accent);font-weight:600}
 .pnone{text-align:center;color:var(--ink3);font-size:12.5px;padding:22px 0;line-height:1.7}
 
 /* ── 搜尋地點 ── */
@@ -336,6 +337,21 @@ label.f{display:block;font-size:11.5px;color:var(--ink2);margin:11px 0 4px}
   background:rgba(28,27,25,.93);color:#fff;font-size:12.5px;padding:10px 16px;border-radius:11px;
   opacity:0;transition:.22s;pointer-events:none;max-width:88%;text-align:center}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── 每個會打字的欄位右側都補一顆一鍵清除的 × ──
+   手機上要換內容得先全選再刪，很煩；有 × 就一下的事。
+   type=number 順便關掉桌機的上下箭頭，不然會跟 × 疊在一起（手機本來就沒有）。 */
+.clrw{position:relative;display:block;width:100%;flex:1 1 0;min-width:0}
+.clrw>input.clrq,.clrw>textarea.clrq{padding-right:34px!important}
+/* 用 .clrw> 提高權重，否則會被 .srow button / .linkbox button 那些既有規則塗成黑底 */
+.clrw>.clrx{position:absolute;right:2px;top:0;height:100%;width:auto;display:none;align-items:center;
+  justify-content:center;border:0;border-radius:0;background:none;box-shadow:none;flex:none;
+  font-size:17px;line-height:1;color:var(--ink3);cursor:pointer;padding:0 9px}
+.clrw.has>.clrx{display:flex}
+.clrw.ta>.clrx{height:38px;align-items:flex-start;padding-top:10px}
+.clrw>input[type=number].clrq{-moz-appearance:textfield}
+.clrw>input[type=number].clrq::-webkit-outer-spin-button,
+.clrw>input[type=number].clrq::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 </style>
 </head>
 <body>
@@ -370,6 +386,11 @@ label.f{display:block;font-size:11.5px;color:var(--ink2);margin:11px 0 4px}
           <button type="button" class="pqx" id="poolQx" aria-label="清除搜尋">×</button>
         </div>
         <div class="pcats" id="poolCats"></div>
+        <div class="psort" id="poolUse">
+          <button data-pu="todo">未加入</button>
+          <button data-pu="done">已加入</button>
+          <button data-pu="all">全部</button>
+        </div>
         <div class="psort" id="poolSort">
           <button data-ps="order">加入順序</button>
           <button data-ps="near">離今天最近</button>
@@ -405,7 +426,7 @@ const MODES={walk:{i:'🚶',n:'走路',k:4.6},transit:{i:'🚃',n:'大眾運輸'
 const EMOJI=['📍','⛩️','🏯','🌳','🌸','🗼','🏰','🎡','🏖️','⛰️','🍜','🍣','🍢','🍰','☕','🍺','🛍️','🎮','🏨','🚉','✈️','🚌','💡','🎨','🎢','♨️','🎁','✨'];
 const WD=['日','一','二','三','四','五','六'];
 const KEY='travelPlanner.v1';
-const APP_VER='v2026.08.14b';
+const APP_VER='v2026.08.15a';
 const PX=.62, MINH=56;
 
 /* ══════════════════ 工具 ══════════════════ */
@@ -474,6 +495,18 @@ function guessMode(a,b){const d=km(a,b);if(d==null)return 'transit';return d<1.1
 
 /* Google 地圖 App 分享出來的短網址 —— 前端無法展開（跨網域） */
 const SHORT_RE=/https?:\/\/(?:maps\.app\.goo\.gl|goo\.gl\/maps)\/\S+/i;
+
+/* 展開後的 Google 網址若沒有座標，至少能挖出「店名, 地址」 */
+function placeTextFromUrl(u){
+  try{
+    const x=new URL(u);
+    const q=x.searchParams.get('q')||x.searchParams.get('query')||'';
+    if(q&&!/^-?\d+\.\d+\s*,/.test(q))return q.replace(/\s+/g,' ').trim();
+    const m=x.pathname.match(/\/maps\/place\/([^\/@]+)/);
+    if(m)return decodeURIComponent(m[1]).replace(/\+/g,' ').replace(/\s+/g,' ').trim();
+  }catch(e){}
+  return '';
+}
 
 /* 從 Google Maps 連結解析座標 */
 function parseLatLng(url){
@@ -591,6 +624,15 @@ async function searchPlaces(q,area,onStep){
     why:'⚠ 找不到確切門牌，已定位到<b>街區層級</b>（誤差約 100–300 公尺）。請在下方地圖確認位置。',
     step:'街區＋地區再試…'});
   if(area&&nz&&nz!==q)tries.push({q:`${nz}, ${area}`,why:'轉成日文漢字並加上地區後找到。',step:'日文漢字＋地區再試…'});
+  /* Google 分享網址常是「店名, 完整地址」，店名多半在 OSM 查不到，地址反而有 */
+  const tail=q.includes(',')?q.slice(q.indexOf(',')+1).trim():'';
+  if(tail&&tail!==q){
+    tries.push({q:tail,why:'⚠ 店名查不到，已改用<b>地址</b>定位，請在地圖上確認。',step:'略過店名，只用地址…'});
+    const tc=coarseAddress(tail);
+    if(tc&&tc!==tail)tries.push({q:tc,
+      why:'⚠ 找不到確切門牌，已定位到<b>街區層級</b>（誤差約 100–300 公尺）。請在下方地圖確認位置。',
+      step:'地址去掉門牌再試…'});
+  }
   const pc=(q.match(/\d{3}-?\d{4}/)||[])[0];
   if(pc)tries.push({q:pc+' Japan',why:'⚠ 只比對到郵遞區號，這是該區的<b>大概位置</b>，請在地圖上確認再存。',
     step:`用郵遞區號 ${pc} 再試…`});
@@ -904,7 +946,7 @@ function render(){
   save();
 }
 
-let poolQ='',poolCat='all',poolSort='order';
+let poolQ='',poolCat='all',poolSort='order',poolUse='todo';
 
 /* 當天行程的地理中心，用來算「這個候選點離今天多遠」 */
 function dayCenter(){
@@ -920,7 +962,9 @@ const distTxt=d=>d==null?'':d<1?`${Math.round(d*1000)} m`:`${d.toFixed(1)} km`;
 function renderPool(){
   const all=S.pool,q=poolQ.trim().toLowerCase();
   const center=dayCenter();
+  const used=new Map(all.map(c=>[c.id,famDays(famOf(c))]));   // 每個候選被排進哪幾天
   let list=all.filter(c=>
+    (poolUse==='all'||(poolUse==='done')===(used.get(c.id).length>0)) &&
     (poolCat==='all'||c.cat===poolCat) &&
     (!q||(c.name+' '+(c.note||'')).toLowerCase().includes(q)));
   list=list.map(c=>({c,d:center?km(center,c):null}));
@@ -929,9 +973,13 @@ function renderPool(){
 
   $('#poolQ').value=poolQ;                        // 換旅程時 poolQ 會被清掉，欄位要跟著清
   $('#poolQwrap').classList.toggle('has',!!poolQ);
-  const filtering=!!q||poolCat!=='all';
-  $('#poolN').textContent=filtering?`顯示 ${list.length} / ${all.length}`:`${all.length} 個待安排`;
+  const nTodo=all.filter(c=>!used.get(c.id).length).length;
+  const filtering=!!q||poolCat!=='all'||poolUse!=='todo';
+  $('#poolN').textContent=filtering?`顯示 ${list.length} / ${all.length}`
+    :`${nTodo} 個待安排${all.length-nTodo?` ・ ${all.length-nTodo} 個已排入`:''}`;
   $('#poolFilter').style.display=all.length?'':'none';
+  $('#poolUse').querySelectorAll('[data-pu]').forEach(b=>
+    b.classList.toggle('on',b.dataset.pu===poolUse));
   $('#poolCats').querySelectorAll('[data-pcat]').forEach(b=>
     b.classList.toggle('on',b.dataset.pcat===poolCat));
   $('#poolSort').querySelectorAll('[data-ps]').forEach(b=>
@@ -940,15 +988,21 @@ function renderPool(){
   const me=DB.me||'我';
   $('#poolList').innerHTML=list.length?list.map(({c,d})=>{
     const v=c.votes||[],mine=v.includes(me);
+    const on=used.get(c.id);
     return `<div class="pc">
       <div class="ic" style="background:${CAT[c.cat].c}22">${c.emoji||CAT[c.cat].e}</div>
       <div class="g" data-editpool="${c.id}"><div>${esc(c.name)}</div>
         <div>${CAT[c.cat].n} ・ ${durTxt(c.dur)}${
-          d!=null?` ・ <span class="pdist">離今天 ${distTxt(d)}</span>`:(c.lat==null?' ・ ⚠ 無座標':'')}</div></div>
+          d!=null?` ・ <span class="pdist">離今天 ${distTxt(d)}</span>`:(c.lat==null?' ・ ⚠ 無座標':'')}${
+          on.length?` ・ <span class="pon">已排 ${on.map(i=>'Day '+(i+1)).join('、')}</span>`:''}</div></div>
       <div class="vt ${mine?'on':''}" data-vote="${c.id}" title="${esc(v.join('、'))}">👍${v.length||''}</div>
-      <div class="add" data-pool="${c.id}">加入</div>
+      <div class="add" data-pool="${c.id}">${on.length?'再加一天':'加入'}</div>
     </div>`}).join('')
-   :`<div class="pnone">${filtering?'沒有符合的候選行程<br>試試清掉搜尋或改選「全部」':'還沒有候選行程'}</div>`;
+   :`<div class="pnone">${
+      poolUse==='done'&&!q&&poolCat==='all'?'還沒有候選行程被排進任何一天'
+      :filtering?'沒有符合的候選行程<br>試試清掉搜尋或改選「全部」'
+      :all.length?'候選行程都排進行程表了 🎉<br>切到「已加入」可以再排到別天'
+      :'還沒有候選行程'}</div>`;
 }
 function initPoolFilter(){
   $('#poolCats').innerHTML=`<button data-pcat="all">全部</button>`+
@@ -960,6 +1014,10 @@ function initPoolFilter(){
   $('#poolQ').addEventListener('input',e=>{poolQ=e.target.value;renderPool()});
   $('#poolQx').addEventListener('click',()=>{
     poolQ='';$('#poolQ').value='';renderPool();$('#poolQ').focus();
+  });
+  $('#poolUse').addEventListener('click',e=>{
+    const b=e.target.closest('[data-pu]');if(!b)return;
+    poolUse=b.dataset.pu;renderPool();
   });
   $('#poolSort').addEventListener('click',e=>{
     const b=e.target.closest('[data-ps]');if(!b)return;
@@ -1231,7 +1289,42 @@ $('#fab').onclick=()=>editActivity(null,'day');
 $('#ttl').onclick=tripSettings;
 
 /* ══════════════════ 彈窗 ══════════════════ */
-function openModal(html){$('#modal').innerHTML=html;$('#mask').classList.add('on')}
+function openModal(html){
+  $('#modal').innerHTML=html;$('#mask').classList.add('on');attachClears($('#modal'));
+}
+/* 日期／時間欄有原生選擇器，補 × 只會擋到，所以排除 */
+const CLRTYPE=/^(text|search|url|tel|number|password|)$/i;
+function attachClears(root){
+  root.querySelectorAll('input,textarea').forEach(el=>{
+    if(el.closest('.clrw,.pq'))return;                       // 已包過、或自己有 ×
+    if(el.readOnly||el.disabled)return;
+    if(el.tagName==='INPUT'&&!CLRTYPE.test(el.getAttribute('type')||''))return;
+    const w=document.createElement('span');
+    w.className='clrw'+(el.tagName==='TEXTAREA'?' ta':'');
+    el.parentNode.insertBefore(w,el);w.appendChild(el);el.classList.add('clrq');
+    const b=document.createElement('button');
+    b.type='button';b.className='clrx';b.tabIndex=-1;
+    b.setAttribute('aria-label','清除');b.textContent='×';
+    w.appendChild(b);
+    const sync=()=>w.classList.toggle('has',!!el.value);
+    b.addEventListener('click',()=>{
+      el.value='';sync();
+      el.dispatchEvent(new Event('input',{bubbles:true}));   // 讓原本的即時預覽也跟著更新
+      el.dispatchEvent(new Event('change',{bubbles:true}));
+      el.focus();
+    });
+    el.addEventListener('input',sync);el.addEventListener('change',sync);
+    sync();
+  });
+}
+/* 程式碼自己塞值（例如換交通方式會填入估算分鐘）不會觸發 input 事件，點完補算一次 */
+function refreshClears(root){
+  root.querySelectorAll('.clrw').forEach(w=>{
+    const el=w.querySelector('input,textarea');
+    if(el)w.classList.toggle('has',!!el.value);
+  });
+}
+$('#modal').addEventListener('click',()=>setTimeout(()=>refreshClears($('#modal')),0));
 function closeModal(){$('#mask').classList.remove('on')}
 $('#mask').onclick=e=>{if(e.target.id==='mask')closeModal()};
 
@@ -1326,6 +1419,7 @@ function editActivity(id,where){
     if(m){
       $('#f_url').value=m[0];                           // 網址仍保留，卡片上可一鍵開啟
       const rest=q.replace(SHORT_RE,'').replace(/\s+/g,' ').trim();
+      let got=false;                                    // 已經從展開的網址拿到可用的搜尋字串
 
       /* 沒另外設定的話，直接用自己那台 Worker 的 /r 端點 */
       const rsv=DB.resolver||(syncBase()?syncBase()+'/r?u=':'');
@@ -1339,10 +1433,16 @@ function editActivity(id,where){
             $('#f_res').innerHTML='<div class="resmsg">✓ 已從短網址解析出位置。</div>';
             return;
           }
+          /* 沒有經緯度，但 Google 的網址通常帶著「店名, 完整地址」，拿它去 OSM 也很有用 */
+          const nm=placeTextFromUrl(txt);
+          if(nm){
+            if(!$('#f_name').value.trim())$('#f_name').value=nm.split(',')[0].trim();
+            q=nm;got=true;note='短網址裡沒有座標，已取出「店名＋地址」改用它搜尋。';
+          }
         }catch(e){}
       }
 
-      if(!rest){
+      if(!got&&!rest){
         $('#f_res').innerHTML=`<div class="resmsg">
           這是 Google 地圖 App 的<b>短網址</b>，瀏覽器沒辦法直接展開（跨網域限制）。最快的兩個做法：<br>
           ① 回 Google 地圖點那個地點 → <b>點一下地址那一列會複製地址</b> → 貼到上面搜尋<br>
@@ -1352,7 +1452,7 @@ function editActivity(id,where){
         $('#f_open').onclick=()=>window.open(m[0],'_blank');
         return;
       }
-      q=rest;note='已略過短網址，改用你一起貼上的文字搜尋。';
+      if(!got){q=rest;note='已略過短網址，改用你一起貼上的文字搜尋。'}
     }
 
     $('#f_go').disabled=true;$('#f_res').innerHTML='<div class="resmsg">搜尋中…</div>';
@@ -1445,7 +1545,18 @@ function editActivity(id,where){
 
     const data=Object.assign({},base,{emoji,cat,
       dur:Math.max(0,+$('#f_dur').value||0),cost:+$('#f_cost').value||0});
-    if(c&&!wasLodge){Object.assign(c,data);if(c.tr)c.tr.pk='';}
+    if(c&&!wasLodge){
+      Object.assign(c,data);if(c.tr)c.tr.pk='';
+      /* 名稱／座標／分類／圖示／連結 = 這個「地點」的屬性 → 所有分身一起改。
+         停留時間、花費、備註、釘選 = 那一天的安排 → 各自獨立。 */
+      const fam=famOf(c),sib=famMembers(fam).filter(x=>x!==c);
+      if(sib.length){
+        const moved=sib.some(x=>x.lat!==data.lat||x.lng!==data.lng);
+        sib.forEach(x=>Object.assign(x,{name:data.name,emoji:data.emoji,cat:data.cat,
+          lat:data.lat,lng:data.lng,url:data.url}));
+        if(moved)resetTrOfDays(famDays(fam));
+      }
+    }
     else{
       if(c){removeFromAll(c.id);resetLodgeTr()}          // 從住宿改成一般行程
       const a=Object.assign({id:nid(),pin:null,tr:null},data);
@@ -1455,8 +1566,12 @@ function editActivity(id,where){
   };
   if(c)$('#rm').onclick=()=>{
     snapshot('刪除「'+c.name+'」');
+    /* 刪候選池的本尊時，已經排進行程表的分身要留著 —— 那是真的排好的行程，
+       默默刪掉太粗暴。分身之間仍然靠 ref 互相連動。 */
+    const kept=(!wasLodge&&S.pool.includes(c))?famDays(famOf(c)).length:0;
     removeFromAll(c.id);if(wasLodge)resetLodgeTr();
-    closeModal();render();toast('已刪除',true);
+    closeModal();render();
+    toast(kept?`已從候選池刪除，行程表裡的 ${kept} 天仍保留`:'已刪除',true);
   };
 }
 
@@ -1516,18 +1631,29 @@ function moveBack(id){
   const it=S.days[day].items,i=it.findIndex(x=>x.id===id);
   snapshot('移回候選');
   const [c]=it.splice(i,1);
-  c.open=false;c.pin=null;c.tr=null;S.pool.push(c);render();toast('已移回候選',true);
+  const master=c.ref&&S.pool.find(x=>x.id===c.ref);
+  if(!master){                                        // 本尊不在（直接用＋建的、或本尊已刪）才放回去
+    c.open=false;c.pin=null;c.tr=null;delete c.ref;S.pool.push(c);
+  }
+  render();toast(master?'已從這天移除，候選池裡還留著':'已移回候選',true);
 }
 function pickDay(id){
   const c=S.pool.find(x=>x.id===id);
   openModal(`<h3>${c.emoji} ${esc(c.name)}</h3>
-    <p class="hint">要加到哪一天？會接在當天最後面，之後可以拖曳調整順序。</p>
-    <div class="opts">${S.days.map((d,i)=>
-      `<button data-day="${i}">Day ${i+1}<br><small style="color:#98948c">${dLabel(i)}</small></button>`).join('')}</div>`);
+    <p class="hint">要加到哪一天？會接在當天最後面，之後可以拖曳調整順序。<br>
+      加進去之後<b>候選池裡還會留著</b>，同一個地點可以排到好幾天。</p>
+    <div class="opts">${S.days.map((d,i)=>{
+      const has=d.items.some(x=>famOf(x)===famOf(c));
+      return `<button data-day="${i}">Day ${i+1}${has?' ✓':''}<br>
+        <small style="color:#98948c">${dLabel(i)}${has?' 已排':''}</small></button>`}).join('')}</div>`);
   $('#modal').querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{
-    const i=+b.dataset.day;S.pool.splice(S.pool.indexOf(c),1);
-    if(!c.dur)c.dur=60;S.days[i].items.push(c);day=i;
-    closeModal();render();$('#sheet').classList.remove('open');toast(`已加入 Day ${i+1}`);
+    const i=+b.dataset.day;
+    snapshot(`加入 Day ${i+1}`);
+    const copy=Object.assign({},c,{id:nid(),ref:famOf(c),open:false,pin:null,tr:null,votes:[]});
+    if(!copy.dur)copy.dur=60;
+    S.days[i].items.push(copy);day=i;                 // 本尊留在候選池，可以再加到別天
+    closeModal();render();$('#sheet').classList.remove('open');
+    toast(`已加入 Day ${i+1}，候選池裡還留著`,true);
   });
 }
 
@@ -1923,6 +2049,24 @@ const allSpots=()=>[
   ...(S.lodgings||[]),
 ].map(x=>({name:x.name,lat:x.lat,lng:x.lng}));
 
+/* ── 同一個地點被排到好幾天 ──
+   候選池那筆是「本尊」，加到某天時複製一份分身，用 ref 指回本尊。
+   本尊的 fam 是自己的 id，分身的 fam 是 ref，所以就算本尊被刪掉，
+   分身之間仍然認得彼此、繼續連動。 */
+const famOf=c=>c&&(c.ref||c.id);
+const famMembers=fam=>[
+  ...S.pool.filter(x=>famOf(x)===fam),
+  ...S.days.flatMap(d=>d.items.filter(x=>famOf(x)===fam)),
+];
+const famDays=fam=>S.days.map((d,i)=>d.items.some(x=>famOf(x)===fam)?i:-1).filter(i=>i>=0);
+/* 座標變了，那幾天的交通估算全部要重算（pk 清掉就會重估） */
+const resetTrOfDays=idx=>idx.forEach(i=>{
+  const d=S.days[i];if(!d)return;
+  d.items.forEach(x=>{if(x.tr&&!x.tr.man)x.tr.pk=''});
+  if(d.trIn&&!d.trIn.man)d.trIn.pk='';
+  if(d.trOut&&!d.trOut.man)d.trOut.pk='';
+});
+
 let geoRun=false;
 async function geocodePool(ids,onStep){
   if(geoRun)return;geoRun=true;
@@ -2208,7 +2352,7 @@ $('#drawerBtn').onclick=openDrawer;
 $('#drawer').onclick=e=>{if(e.target.id==='drawer')closeDrawer()};
 
 function switchTrip(id){
-  DB.currentId=id;S=curTrip();day=0;poolQ='';poolCat='all';poolSort='order';
+  DB.currentId=id;S=curTrip();day=0;poolQ='';poolCat='all';poolSort='order';poolUse='todo';
   if(viewMode!=='list'){viewMode='list';applyView()}   // 切回清單，避免畫面停在舊旅程
   $('#poolQ').value='';$('#sheet').classList.remove('open');
   syncDayCount();closeDrawer();render();
